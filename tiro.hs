@@ -31,21 +31,24 @@ compute_time_stamps _ time [] = []
 compute_time_stamps zone time ((h,m):xs) = do
   let length = realToFrac $ h * 60 * 60 + m * 60
   let ending_date = addUTCTime length time
-  (format $ utcToZonedTime zone ending_date) : (compute_time_stamps zone ending_date xs)
+  (format $ utcToLocalTime zone ending_date) : (compute_time_stamps zone ending_date xs)
 
+
+gen_lines contents curr zone = do
+  let lines = filter (\s -> s /= "") $ split '\n' contents
+  let decomposed_lines =  map (split ' ') lines
+
+  let activities = map (\line -> let _:_:act = line in concatenate ' ' act) decomposed_lines
+  let hm = map (\line -> (parse_int $ head line, parse_int $ head $ tail line)) decomposed_lines
+
+  let time_stamps = compute_time_stamps zone curr hm
+
+  let ta = zip time_stamps activities
+
+  ("-- " ++ format (utcToLocalTime zone curr) ++ " start") : map (\line -> "-> " ++ fst line ++ " " ++ snd line) ta
 
 main = do
   contents <- getContents
-  ZonedTime _ zone <- getZonedTime
-  let lines = split '\n' contents
-  let decomposed_lines =  map (split ' ') $ filter (\s -> s /= "") lines
   curr <- getCurrentTime
-  let hm = map (\line -> (parse_int $ head line, parse_int $ head $ tail line)) decomposed_lines
-  let time_stamps = compute_time_stamps zone curr hm
-  let activities = map (\line -> let _:_:act = line in act) decomposed_lines
-  let act = map (concatenate ' ') activities
-  let ta = zip time_stamps act
-
-  putStrLn $ "-- " ++ format curr ++ " start"
-
-  mapM (\line -> putStrLn $ "-> " ++ (fst line) ++ " " ++ (snd line)) ta
+  ZonedTime _ zone <- getZonedTime
+  mapM (\line -> putStrLn line) $ gen_lines contents curr zone
