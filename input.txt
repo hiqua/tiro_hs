@@ -1,0 +1,6 @@
+0 30 procrastinate
+1 0 say hi to the neighbours
+2 0 eat, a LOT
+0 45 walk the dog
+0 10 remember that I don't actually have a dog
+
