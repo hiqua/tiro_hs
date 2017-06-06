@@ -48,11 +48,10 @@ gen_lines contents curr zone = do
   ("-- " ++ format (utcToLocalTime zone curr) ++ " start") : map (\line -> "-> " ++ fst line ++ " " ++ snd line) ta
 
 round_up_time rd_unit utctime = do
-  let UTCTime day time = utctime
-  let ceil_time = secondsToDiffTime (ceiling (time/(60* rd_unit))) * rd_unit * 60
+  let UTCTime _ time = utctime
+  let ceil_time = fromRational $ toRational $ secondsToDiffTime (ceiling (time/(60* rd_unit))) * rd_unit * 60
 
-  -- possibly not the right day
-  UTCTime day ceil_time
+  addUTCTime ceil_time utctime
 
 delay_time delay utctime = do
   let delay_nd = fromRational (delay * 60)
