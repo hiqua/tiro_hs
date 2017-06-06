@@ -47,11 +47,17 @@ gen_lines contents curr zone = do
 
   ("-- " ++ format (utcToLocalTime zone curr) ++ " start") : map (\line -> "-> " ++ fst line ++ " " ++ snd line) ta
 
+round_up_time :: DiffTime -> UTCTime -> UTCTime
 round_up_time rd_unit utctime = do
-  let UTCTime _ time = utctime
-  let ceil_time = fromRational $ toRational $ secondsToDiffTime (ceiling (time/(60* rd_unit))) * rd_unit * 60
+  -- hackish
+  let rd_unit_int = fromEnum rd_unit
+  let UTCTime date time = utctime
+  let truncated_time = ceiling (time / (60 * rd_unit)) * 60 * rd_unit_int
+  let delta_dt = (toEnum truncated_time) - time
+  let ndf = fromRational $ toRational $ delta_dt
 
-  addUTCTime ceil_time utctime
+  addUTCTime ndf utctime
+
 
 delay_time delay utctime = do
   let delay_nd = fromRational (delay * 60)
@@ -60,7 +66,7 @@ delay_time delay utctime = do
 main = do
   currTime <- getCurrentTime
 
-  let UTCTime day time = round_up_time 5 $ delay_time 110 $  currTime
+  let UTCTime day time = round_up_time 10 $ delay_time 7 $  currTime
   let curr = UTCTime day time
 
   ZonedTime _ zone <- getZonedTime
