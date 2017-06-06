@@ -47,8 +47,23 @@ gen_lines contents curr zone = do
 
   ("-- " ++ format (utcToLocalTime zone curr) ++ " start") : map (\line -> "-> " ++ fst line ++ " " ++ snd line) ta
 
+round_up_time rd_unit utctime = do
+  let UTCTime day time = utctime
+  let ceil_time = secondsToDiffTime (ceiling (time/(60* rd_unit))) * rd_unit * 60
+
+  -- possibly not the right day
+  UTCTime day ceil_time
+
+delay_time delay utctime = do
+  let delay_nd = fromRational (delay * 60)
+  addUTCTime delay_nd utctime
+
 main = do
-  contents <- getContents
-  curr <- getCurrentTime
+  currTime <- getCurrentTime
+
+  let UTCTime day time = round_up_time 5 $ delay_time 110 $  currTime
+  let curr = UTCTime day time
+
   ZonedTime _ zone <- getZonedTime
+  contents <- getContents
   mapM (\line -> putStrLn line) $ gen_lines contents curr zone
