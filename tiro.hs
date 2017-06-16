@@ -1,24 +1,38 @@
 -- My first real haskell program!
+-- TODO
+-- pauses between activities
+-- global parameters as command line options
+-- rewrite by using parsec
+--   specifying the grammar of the input files
+--   extract a parser directly from the grammar
 import Data.Char
 import Data.Time
 import Data.Typeable
 import Text.Read
 import Data.Maybe
 
+-- split the list of char at every occurrence of a char
 split :: Char -> [Char] -> [String]
 split _ [] = [[]]
 split c (x:[]) = if c == x then [[]] else [[x]]
-split c (x:xs) = if c == x then []:(split c xs)
-			   else do
-			      let sp = split c xs
-			      (x:(head sp)): tail sp
+split c (x:xs) = if c == x then []:(split c xs) else do
+      let hd:tl = split c xs
+      (x:(hd)): tl
 
-concatenate :: Char -> [String] -> [Char]
-concatenate _ [] = ""
-concatenate _ [s] = s
-concatenate c (x:y:xs) = x ++ [c] ++ (concatenate c (y:xs))
+interlace _ [] = []
+interlace _ [x] = [x]
+interlace e (x : y : xs) = x : e : (interlace e (y:xs))
 
-parse_int is = do
+mergeStrings :: [String] -> String
+mergeStrings [] = ""
+mergeStrings (x : xs) = x ++ (mergeStrings xs)
+
+-- concatenate multiple strings with a separation string
+-- concatenate :: String -> [String] -> [Char]
+concatenate :: String -> [String] -> String
+concatenate c xs = mergeStrings $ interlace c xs
+
+parseInt is = do
   let r = readMaybe is :: Maybe Int
   fromJust r
 
@@ -26,49 +40,67 @@ parse_int is = do
 format :: FormatTime t => t -> String
 format t = formatTime defaultTimeLocale "%H:%M" t
 
--- compute_time_stamps :: TimeZone -> UTCTime -> [(Int , Int)] -> [String]
-compute_time_stamps _ time [] = []
-compute_time_stamps zone time ((h,m):xs) = do
-  let length = realToFrac $ h * 60 * 60 + m * 60
-  let ending_date = addUTCTime length time
-  (format $ utcToLocalTime zone ending_date) : (compute_time_stamps zone ending_date xs)
+
+computeTimeStamps :: TimeZone -> UTCTime -> [(Int , Int)] -> [String]
+computeTimeStamps _ time [] = []
+computeTimeStamps zone time ((h,m):xs) = do
+   let length = realToFrac $ h * 60 * 60 + m * 60
+   let ending_date = addUTCTime length time
+   (format $ utcToLocalTime zone ending_date) : (computeTimeStamps zone ending_date xs)
 
 
-gen_lines contents curr zone = do
-  let lines = filter (\s -> s /= "") $ split '\n' contents
-  let decomposed_lines =  map (split ' ') lines
+genLines contents curr zone = do
 
-  let activities = map (\line -> let _:_:act = line in concatenate ' ' act) decomposed_lines
-  let hm = map (\line -> (parse_int $ head line, parse_int $ head $ tail line)) decomposed_lines
+  let decomposedLines =  map (split ' ') $ filter (\s -> s /= "") $ split '\n' contents
 
-  let time_stamps = compute_time_stamps zone curr hm
+  let activities = map (\line -> let _:_:a = line in concatenate " " a) decomposedLines
 
-  let ta = zip time_stamps activities
+  -- (h,m) list
+  let hm = map (\l -> (parseInt $ head l, parseInt $ head $ tail l)) decomposedLines
 
-  ("-- " ++ format (utcToLocalTime zone curr) ++ " start") : map (\line -> "-> " ++ fst line ++ " " ++ snd line) ta
+  let timeStamps = computeTimeStamps zone curr hm
 
-round_up_time :: DiffTime -> UTCTime -> UTCTime
-round_up_time rd_unit utctime = do
+  let ta = zip timeStamps activities
+
+  let header = ("-- " ++ format (utcToLocalTime zone curr) ++ " start")
+  let tl = map (\line -> "-> " ++ fst line ++ " " ++ snd line) ta
+
+  header : tl
+
+roundUpTime :: DiffTime -> UTCTime -> UTCTime
+roundUpTime rd_unit utctime = do
   -- hackish
   let rd_unit_int = fromEnum rd_unit
-  let UTCTime date time = utctime
-  let truncated_time = ceiling (time / (60 * rd_unit)) * 60 * rd_unit_int
-  let delta_dt = (toEnum truncated_time) - time
-  let ndf = fromRational $ toRational $ delta_dt
+  let UTCTime _ time = utctime
+  let truncatedTime = ceiling (time / (60 * rd_unit)) * 60 * rd_unit_int
+  let deltaDt = (toEnum truncatedTime) - time
+  let ndf = fromRational $ toRational $ deltaDt
 
   addUTCTime ndf utctime
 
 
-delay_time delay utctime = do
+delayTime delay utctime = do
   let delay_nd = fromRational (delay * 60)
   addUTCTime delay_nd utctime
 
+getZone () = do
+  ZonedTime _ zone <- getZonedTime
+  return zone
+
+
+-- addBreaks :: String -> Int -> String
+-- addBreaks content duration = do
+--   let lines = split '\n' content
+--   let e = "0 " ++ show duration ++ " break"
+--   concatenate "\n" (interlace e lines)
+
 main = do
   currTime <- getCurrentTime
-
-  let UTCTime day time = round_up_time 10 $ delay_time 7 $  currTime
-  let curr = UTCTime day time
-
-  ZonedTime _ zone <- getZonedTime
+  zone <- getZone ()
   contents <- getContents
-  mapM (\line -> putStrLn line) $ gen_lines contents curr zone
+  -- let contents = addBreaks ontents 30
+  putStrLn contents
+
+  let modifiedCurrTime = roundUpTime 10 $ delayTime 5 $ currTime
+
+  mapM (\line -> putStrLn line) $ genLines contents modifiedCurrTime zone
