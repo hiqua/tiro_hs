@@ -1,6 +1,5 @@
 -- My first real haskell program!
 -- TODO
--- pauses between activities
 -- global parameters as command line options
 -- rewrite by using parsec
 --   specifying the grammar of the input files
@@ -40,7 +39,7 @@ parseInt is = do
 format :: FormatTime t => t -> String
 format t = formatTime defaultTimeLocale "%H:%M" t
 
-
+-- replace by making it more composable 'a -> 'a and using some function iterated
 computeTimeStamps :: TimeZone -> UTCTime -> [(Int , Int)] -> [String]
 computeTimeStamps _ time [] = []
 computeTimeStamps zone time ((h,m):xs) = do
@@ -88,17 +87,19 @@ getZone () = do
   return zone
 
 
--- addBreaks :: String -> Int -> String
--- addBreaks content duration = do
---   let lines = split '\n' content
---   let e = "0 " ++ show duration ++ " break"
---   concatenate "\n" (interlace e lines)
+addBreaks :: String -> Int -> String
+addBreaks content duration = do
+  let lines = split '\n' content
+  let e = "0 " ++ show duration ++ " break"
+  concatenate "\n" (interlace e lines)
 
 main = do
   currTime <- getCurrentTime
   zone <- getZone ()
-  contents <- getContents
-  -- let contents = addBreaks ontents 30
+  raw_contents <- getContents
+  let contents = addBreaks raw_contents 10
+
+  -- debugging
   putStrLn contents
 
   let modifiedCurrTime = roundUpTime 10 $ delayTime 5 $ currTime
